@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Volume2, ArrowLeft } from 'lucide-react';
+import { auth, googleProvider, db } from '../firebase'; // Import Firebase Firestore
+import { createUserWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore'; // Import Firestore methods
 
 function SignupPage() {
   const navigate = useNavigate();
@@ -9,19 +12,52 @@ function SignupPage() {
     password: '',
     name: ''
   });
+  const [error, setError] = useState(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Handle Email/Password Signup
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      const user = userCredential.user;
+
+      // Save user's name and email to Firestore
+      await setDoc(doc(db, 'users', user.uid), {
+        name: formData.name,
+        email: formData.email
+      });
+
+      // Navigate to the onboarding page after successful signup
+      navigate('/onboarding');
+    } catch (error) {
+      console.error('Error creating user:', error);
+    }
+  };
+
+  // Handle Google Sign-In
+  const handleGoogleSignIn = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+
+      // Save user's Google profile info (name, email) to Firestore
+      await setDoc(doc(db, 'users', user.uid), {
+        name: user.displayName,
+        email: user.email
+      });
+
+      // Navigate to the onboarding page after Google sign-in
+      navigate('/onboarding');
+    } catch (error) {
+      console.error('Error with Google sign-in:', error);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-white">
       <nav className="p-6">
-        <button 
-          onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-gray-600 hover:text-orange-500 transition-colors"
-        >
+        <button onClick={() => navigate('/')} className="flex items-center gap-2 text-gray-600 hover:text-orange-500 transition-colors">
           <ArrowLeft className="h-5 w-5" />
           Back to Home
         </button>
@@ -39,9 +75,9 @@ function SignupPage() {
             <p className="text-gray-600">Start your journey to better communication</p>
           </div>
 
-          <button className="w-full bg-white text-gray-700 py-3 px-4 rounded-lg
-            hover:bg-gray-50 transition-all duration-300 flex items-center justify-center gap-3
-            border border-gray-200 shadow-sm">
+          {error && <p className="text-red-500 text-center mb-4">{error}</p>}
+
+          <button onClick={handleGoogleSignIn} className="w-full bg-white text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-50 transition-all duration-300 flex items-center justify-center gap-3 border border-gray-200 shadow-sm">
             <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
             Continue with Google
           </button>
@@ -59,9 +95,7 @@ function SignupPage() {
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3
-                  focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent
-                  transition-all duration-300"
+                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300"
                 placeholder="John Doe"
               />
             </div>
@@ -72,9 +106,7 @@ function SignupPage() {
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3
-                  focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent
-                  transition-all duration-300"
+                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300"
                 placeholder="you@example.com"
               />
             </div>
@@ -85,26 +117,19 @@ function SignupPage() {
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3
-                  focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent
-                  transition-all duration-300"
+                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300"
                 placeholder="••••••••"
               />
             </div>
 
-            <button
-              type="submit"
-              className="w-full bg-orange-500 text-white font-semibold py-3 px-4 rounded-lg
-                hover:bg-orange-600 transition-all duration-300 transform hover:scale-[1.02]
-                shadow-lg shadow-orange-500/20"
-            >
+            <button type="submit" className="w-full bg-orange-500 text-white font-semibold py-3 px-4 rounded-lg hover:bg-orange-600 transition-all duration-300 transform hover:scale-[1.02] shadow-lg shadow-orange-500/20">
               Create Account
             </button>
           </form>
 
           <p className="text-center text-sm text-gray-600 mt-6">
             Already have an account?{' '}
-            <button className="text-orange-500 hover:text-orange-600 font-medium transition-colors">
+            <button className="text-orange-500 hover:text-orange-600 font-medium transition-colors" onClick={() => navigate('/login')}>
               Sign in
             </button>
           </p>
