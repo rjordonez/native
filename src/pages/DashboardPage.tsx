@@ -21,6 +21,7 @@ interface ChatMessageProps {
   message: string;
   isAI: boolean;
   timestamp: string;
+  type?: 'system';
 }
 
 interface ChatMessageType {
@@ -28,6 +29,7 @@ interface ChatMessageType {
   message: string;
   isAI: boolean;
   timestamp: string;
+  type?: 'system';
 }
 
 interface Session {
@@ -53,10 +55,21 @@ interface SessionState {
   timeRemaining: number;
   showInstructions: boolean;
   isMuted: boolean;
+  startTime: Date | null;
 }
 
 // ChatMessage Component
-function ChatMessage({ message, isAI, timestamp }: ChatMessageProps) {
+function ChatMessage({ message, isAI, timestamp, type }: ChatMessageProps) {
+  if (type === 'system') {
+    return (
+      <div className="flex justify-center mb-4">
+        <div className="text-gray-500 italic text-sm">
+          {message} ({timestamp})
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`flex ${isAI ? 'justify-start' : 'justify-end'} mb-4`}>
       <div
@@ -90,7 +103,7 @@ function WordOfDay() {
 // SessionsList Component
 function SessionsList({ sessions, onSelectSession }: SessionsListProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto max-h-[calc(100vh-600px)] pb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto max-h-[calc(100vh-200px)] pb-6">
       {sessions.map((session) => (
         <div
           key={session.id}
@@ -116,6 +129,7 @@ function SessionsList({ sessions, onSelectSession }: SessionsListProps) {
             <button
               onClick={() => onSelectSession(session)}
               className="flex-1 flex items-center justify-center space-x-2 bg-orange-50 text-orange-600 px-3 py-2 rounded-lg hover:bg-orange-100 transition"
+              aria-label={`Play Session ${session.id}`}
             >
               <Play size={16} />
               <span>Play</span>
@@ -156,7 +170,10 @@ function Header({
           <Star size={20} className="fill-current" />
           <span className="font-semibold">15 Credits</span>
         </div>
-        <button className="flex items-center space-x-2 text-gray-600 hover:text-orange-600 px-4 py-2 rounded-lg transition">
+        <button
+          className="flex items-center space-x-2 text-gray-600 hover:text-orange-600 px-4 py-2 rounded-lg transition"
+          aria-label="Sign Out"
+        >
           <LogOut size={20} />
           <span>Sign Out</span>
         </button>
@@ -178,7 +195,7 @@ function InstructionsModal({
       <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-semibold text-gray-900">How to Interact with VoiceAI</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700" aria-label="Close Instructions">
             <X size={24} />
           </button>
         </div>
@@ -200,12 +217,14 @@ function InstructionsModal({
           <button
             onClick={onClose}
             className="px-4 py-2 text-gray-600 hover:text-gray-800"
+            aria-label="Cancel Instructions"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
+            aria-label="Confirm Start Session"
           >
             Start Session
           </button>
@@ -221,9 +240,9 @@ function SessionTimer({ timeRemaining }: { timeRemaining: number }) {
   const seconds = timeRemaining % 60;
 
   return (
-    <div className="flex items-center space-x-2 text-gray-600 bg-gray-50 px-4 py-2 rounded-lg shadow">
-      <Timer size={20} />
-      <span className="font-mono">
+    <div className="flex items-center space-x-2 text-gray-600 bg-gray-50 px-3 py-1 rounded-lg shadow z-10">
+      <Timer size={16} />
+      <span className="font-mono text-sm">
         {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
       </span>
     </div>
@@ -357,12 +376,16 @@ function DashboardPage() {
     timeRemaining: 300, // 5 minutes in seconds
     showInstructions: false,
     isMuted: false,
+    startTime: null,
   });
   const [xp, setXp] = useState(2450);
   const xpRef = useRef<HTMLDivElement>(null);
   const [keyPresses, setKeyPresses] = useState<number[]>([]);
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [socketError, setSocketError] = useState<string | null>(null);
+
+  // **New State for Sessions**
+  const [sessions, setSessions] = useState<Session[]>([]); // Initialize with empty array or fetch from API
 
   // Refs for WebSocket, MediaRecorder, AudioContext, and GainNode
   const wsRef = useRef<WebSocket | null>(null);
@@ -387,7 +410,7 @@ function DashboardPage() {
           isActive: prev.timeRemaining - 1 > 0,
         }));
       }, 1000);
-    } else if (sessionState.timeRemaining === 0) {
+    } else if (sessionState.isActive && sessionState.timeRemaining === 0) {
       // Session ended
       endSession();
     }
@@ -453,6 +476,7 @@ function DashboardPage() {
       timeRemaining: 300,
       showInstructions: false,
       isMuted: false,
+      startTime: new Date(),
     });
     initializeMediaSource();
     initializeWebSocket();
@@ -460,7 +484,65 @@ function DashboardPage() {
   };
 
   const handleEndSession = () => {
-    endSession();
+    const endTime = new Date();
+    const { startTime, timeRemaining } = sessionState;
+    let duration = 300 - timeRemaining; // duration in seconds
+
+    // Compute duration based on startTime and endTime
+    if (startTime) {
+      const diffMs = endTime.getTime() - startTime.getTime();
+      duration = Math.floor(diffMs / 1000); // duration in seconds
+    }
+
+    const durationMinutes = Math.floor(duration / 60);
+    const durationSeconds = duration % 60;
+    const durationStr = `${String(durationMinutes).padStart(2, '0')}:${String(durationSeconds).padStart(2, '0')}`;
+
+    const endTimeStr = endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // Add system message to messages **only if a session was active**
+    if (startTime) {
+      const endedMessage = `Ended session at ${endTimeStr} for ${durationStr}`;
+      const timestamp = endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          message: endedMessage,
+          isAI: false,
+          timestamp,
+          type: 'system',
+        },
+      ]);
+    }
+
+    // Then, set sessionState to inactive and reset
+    setSessionState({
+      isActive: false,
+      timeRemaining: 300,
+      showInstructions: false,
+      isMuted: false,
+      startTime: null,
+    });
+
+    stopRecording();
+    closeWebSocket();
+    setSocketError(null);
+
+    // Reset MediaSource and SourceBuffer
+    if (mediaSourceRef.current) {
+      if (mediaSourceRef.current.readyState === 'open') {
+        mediaSourceRef.current.endOfStream();
+      }
+      mediaSourceRef.current = null;
+    }
+
+    if (audioElementRef.current) {
+      audioElementRef.current.pause();
+      audioElementRef.current.src = '';
+    }
+
+    audioChunksRef.current = [];
   };
 
   const initializeWebSocket = () => {
@@ -511,21 +593,13 @@ function DashboardPage() {
           handleAudioStream(event.data);
         } else if (event.type === 'newAudioStream') {
           console.log('New audio stream started');
-          // Already handled by MediaSource initialization
+          // Handled by voiceActivityStart event
         } else if (event.type === 'voiceActivityStart') {
           console.log('User started speaking');
-          // Pause AI audio playback to prevent overlap
-          if (audioElementRef.current && !audioElementRef.current.paused) {
-            audioElementRef.current.pause();
-          }
+          handleVoiceActivityStart();
         } else if (event.type === 'voiceActivityEnd') {
           console.log('User stopped speaking');
-          // Resume AI audio playback if not muted and not already playing
-          if (audioElementRef.current && !sessionState.isMuted) {
-            if (audioElementRef.current.paused) {
-              audioElementRef.current.play().catch((error) => console.error('Error resuming audio:', error));
-            }
-          }
+          handleVoiceActivityEnd();
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
@@ -745,12 +819,47 @@ function DashboardPage() {
   };
 
   const endSession = () => {
+    const endTime = new Date();
+    const { startTime, timeRemaining } = sessionState;
+    let duration = 300 - timeRemaining; // duration in seconds
+
+    // Compute duration based on startTime and endTime
+    if (startTime) {
+      const diffMs = endTime.getTime() - startTime.getTime();
+      duration = Math.floor(diffMs / 1000); // duration in seconds
+    }
+
+    const durationMinutes = Math.floor(duration / 60);
+    const durationSeconds = duration % 60;
+    const durationStr = `${String(durationMinutes).padStart(2, '0')}:${String(durationSeconds).padStart(2, '0')}`;
+
+    const endTimeStr = endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // Add system message to messages **only if a session was active**
+    if (startTime) {
+      const endedMessage = `Ended session at ${endTimeStr} for ${durationStr}`;
+      const timestamp = endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          message: endedMessage,
+          isAI: false,
+          timestamp,
+          type: 'system',
+        },
+      ]);
+    }
+
+    // Then, set sessionState to inactive and reset
     setSessionState({
       isActive: false,
       timeRemaining: 300,
       showInstructions: false,
       isMuted: false,
+      startTime: null,
     });
+
     stopRecording();
     closeWebSocket();
     setSocketError(null);
@@ -769,6 +878,125 @@ function DashboardPage() {
     }
 
     audioChunksRef.current = [];
+  };
+
+  // **Fetch sessions data (you can replace this with actual API calls)**
+  useEffect(() => {
+    const fetchSessions = async () => {
+      // Replace this with your actual data fetching logic
+      const dummySessions: Session[] = [
+        {
+          id: 1,
+          date: '2024-04-20',
+          transcript: 'Transcript of session 1',
+          hasReport: true,
+          analytics: {
+            wordsPerMinute: 120,
+            commonWords: ['um', 'uh', 'like'],
+            improvementAreas: ['Clarity', 'Conciseness'],
+          },
+        },
+        {
+          id: 2,
+          date: '2024-04-18',
+          transcript: 'Transcript of session 2',
+          hasReport: false,
+        },
+        // Add more sessions as needed
+      ];
+      setSessions(dummySessions);
+    };
+
+    fetchSessions();
+  }, []);
+
+  // Handle selecting a session
+  const handleSelectSession = (session: Session) => {
+    setSelectedSession(session);
+    setShowingSessions(false);
+    // Implement any additional logic, such as displaying session details
+    // For example, you could set session details to state or navigate to a different view
+  };
+
+  // Handle closing the sessions list
+  const handleCloseSessions = () => {
+    setShowingSessions(false);
+  };
+
+  // Handle Voice Activity Start: Reset MediaSource to discard buffered audio
+  const handleVoiceActivityStart = () => {
+    // Pause the audio playback
+    if (audioElementRef.current && !audioElementRef.current.paused) {
+      audioElementRef.current.pause();
+    }
+
+    // Reset MediaSource and SourceBuffer to discard buffered audio
+    if (mediaSourceRef.current) {
+      try {
+        if (mediaSourceRef.current.readyState === 'open') {
+          mediaSourceRef.current.endOfStream();
+        }
+      } catch (error) {
+        console.error('Error ending MediaSource stream:', error);
+      }
+      mediaSourceRef.current = null;
+      sourceBufferRef.current = null;
+    }
+
+    // Create a new MediaSource and assign to audio element
+    if (audioElementRef.current) {
+      const mediaSource = new MediaSource();
+      mediaSourceRef.current = mediaSource;
+      audioElementRef.current.src = URL.createObjectURL(mediaSource);
+      audioElementRef.current.autoplay = true;
+
+      mediaSource.addEventListener('sourceopen', () => {
+        try {
+          const sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+          sourceBufferRef.current = sourceBuffer;
+
+          sourceBuffer.addEventListener('updateend', () => {
+            isSourceBufferUpdatingRef.current = false;
+            appendNextBuffer();
+          });
+
+          sourceBuffer.addEventListener('error', (e) => {
+            console.error('SourceBuffer error:', e);
+          });
+        } catch (e) {
+          console.error('Exception while adding source buffer:', e);
+        }
+      });
+
+      mediaSource.addEventListener('sourceended', () => {
+        console.log('MediaSource ended');
+      });
+
+      mediaSource.addEventListener('sourceclose', () => {
+        console.log('MediaSource closed');
+      });
+
+      audioElementRef.current.addEventListener('error', (e) => {
+        console.error('Audio element error:', e);
+      });
+
+      // Start playback once a minimal buffer is appended
+      audioElementRef.current.play().catch((error) => {
+        console.error('Error playing audio:', error);
+      });
+    }
+
+    // Clear any existing audio chunks
+    audioChunksRef.current = [];
+  };
+
+  // Handle Voice Activity End: Resume playback if not muted
+  const handleVoiceActivityEnd = () => {
+    if (audioElementRef.current && !sessionState.isMuted) {
+      if (audioElementRef.current.paused) {
+        audioElementRef.current.play().catch((error) => console.error('Error resuming audio:', error));
+      }
+    }
   };
 
   // XP Animation Handling
@@ -796,23 +1024,22 @@ function DashboardPage() {
       {/* Main Content */}
       <main className="pt-24 pb-24 px-4">
         <WordOfDay />
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[calc(100vh-400px)] mb-20 relative">
-          {/* Session Timer positioned at top right */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[calc(100vh-400px)] mb-20 overflow-y-auto scrollbar-hide relative">
+          {/* Session Timer positioned in top-right corner and sticky */}
           {sessionState.isActive && (
-            <div className="absolute top-4 right-4 z-10">
+            <div className="sticky top-4 flex justify-end">
               <SessionTimer timeRemaining={sessionState.timeRemaining} />
             </div>
           )}
-          <div className="overflow-y-auto scrollbar-hide h-full pt-8 pr-16"> {/* Added pt-8 and pr-16 to prevent overlapping */}
-            {messages.map((msg) => (
-              <ChatMessage
-                key={msg.id}
-                message={msg.message}
-                isAI={msg.isAI}
-                timestamp={msg.timestamp}
-              />
-            ))}
-          </div>
+          {messages.map((msg) => (
+            <ChatMessage
+              key={msg.id}
+              message={msg.message}
+              isAI={msg.isAI}
+              timestamp={msg.timestamp}
+              type={msg.type}
+            />
+          ))}
         </div>
       </main>
 
@@ -829,64 +1056,91 @@ function DashboardPage() {
       {/* Audio Element for AI Responses */}
       <audio ref={audioElementRef} />
 
-      {/* Bottom Bar */}
+      {/* **Conditional Rendering for Sessions List** */}
+      {showingSessions && (
+        <div className="fixed inset-0 bg-white z-50 p-4 overflow-y-auto">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Previous Sessions</h2>
+            <button
+              onClick={handleCloseSessions}
+              className="text-gray-600 hover:text-gray-800"
+              aria-label="Close Sessions List"
+            >
+              <X size={24} />
+            </button>
+          </div>
+          <SessionsList sessions={sessions} onSelectSession={handleSelectSession} />
+        </div>
+      )}
+
+      {/* **Bottom Bar** */}
       {!showingSessions && !selectedSession && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-center space-x-4">
-            {/* Previous Sessions Button */}
-            <button
-              onClick={() => setShowingSessions(true)}
-              className="flex items-center space-x-2 text-gray-600 hover:text-orange-600 px-4 py-2 rounded-lg transition"
-            >
-              <History size={24} />
-              <span>Previous Sessions</span>
-            </button>
-
-            {/* Start Session or Microphone Control */}
-            {!sessionState.isActive ? (
+          <div className="max-w-7xl mx-auto flex items-center justify-center relative">
+            {/* Left Section: Previous Sessions Button */}
+            <div className="absolute left-4">
               <button
-                onClick={handleStartSession}
-                className="bg-orange-500 text-white px-6 py-3 rounded-lg hover:bg-orange-600 transition flex items-center space-x-2"
+                onClick={() => setShowingSessions(true)}
+                className="flex items-center space-x-2 text-gray-600 hover:text-orange-600 px-4 py-2 rounded-lg transition"
+                aria-label="View Previous Sessions"
               >
-                <Play size={24} />
-                <span>Start Session</span>
+                <History size={24} />
+                <span>Previous Sessions</span>
               </button>
-            ) : (
-              <button
-                onClick={() => {
-                  // Toggle mute/unmute
-                  setSessionState((prev) => {
-                    const newMuteState = !prev.isMuted;
-                    // Adjust the gain accordingly
-                    if (gainNodeRef.current) {
-                      gainNodeRef.current.gain.setValueAtTime(
-                        newMuteState ? 0 : 1,
-                        audioContextRef.current?.currentTime || 0
-                      );
-                    }
-                    return { ...prev, isMuted: newMuteState };
-                  });
-                }}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition ${
-                  sessionState.isMuted
-                    ? 'bg-red-500 text-white hover:bg-red-600'
-                    : 'bg-orange-500 text-white hover:bg-orange-600'
-                }`}
-              >
-                {sessionState.isMuted ? <MicOff size={20} /> : <Mic size={20} />}
-                <span>{sessionState.isMuted ? 'Mute' : 'Unmute'}</span>
-              </button>
-            )}
+            </div>
 
-            {/* End Session Button */}
+            {/* Center Section: Start Session or Mute/Unmute Button */}
+            <div>
+              {!sessionState.isActive ? (
+                <button
+                  onClick={handleStartSession}
+                  className="bg-orange-500 text-white px-6 py-3 rounded-lg hover:bg-orange-600 transition flex items-center space-x-2"
+                  aria-label="Start Session"
+                >
+                  <Play size={24} />
+                  <span>Start Session</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    // Toggle mute/unmute
+                    setSessionState((prev) => {
+                      const newMuteState = !prev.isMuted;
+                      // Adjust the gain accordingly
+                      if (gainNodeRef.current) {
+                        gainNodeRef.current.gain.setValueAtTime(
+                          newMuteState ? 0 : 1,
+                          audioContextRef.current?.currentTime || 0
+                        );
+                      }
+                      return { ...prev, isMuted: newMuteState };
+                    });
+                  }}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition ${
+                    sessionState.isMuted
+                      ? 'bg-red-500 text-white hover:bg-red-600'
+                      : 'bg-orange-500 text-white hover:bg-orange-600'
+                  }`}
+                  aria-label={sessionState.isMuted ? 'Unmute' : 'Mute'}
+                >
+                  {sessionState.isMuted ? <MicOff size={20} /> : <Mic size={20} />}
+                  <span>{sessionState.isMuted ? 'Mute' : 'Unmute'}</span>
+                </button>
+              )}
+            </div>
+
+            {/* Right Section: End Session Button */}
             {sessionState.isActive && (
-              <button
-                onClick={handleEndSession}
-                className="flex items-center space-x-2 text-red-600 hover:text-red-700 px-4 py-2 rounded-lg transition"
-              >
-                <X size={24} />
-                <span>End Session</span>
-              </button>
+              <div className="absolute right-4">
+                <button
+                  onClick={handleEndSession}
+                  className="flex items-center space-x-2 text-red-600 hover:text-red-700 px-4 py-2 rounded-lg transition"
+                  aria-label="End Session"
+                >
+                  <X size={24} />
+                  <span>End Session</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -899,6 +1153,7 @@ function DashboardPage() {
           <button
             onClick={() => setSocketError(null)}
             className="ml-2 text-red-500 hover:text-red-700"
+            aria-label="Dismiss Error"
           >
             <X size={16} />
           </button>
