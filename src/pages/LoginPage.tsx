@@ -56,8 +56,7 @@ function LoginPage() {
 
       <div className="max-w-md mx-auto pt-8 px-4">
         <div className="flex items-center gap-2 justify-center mb-8">
-          <Volume2 className="h-10 w-10 text-orange-500" />
-          <span className="text-3xl font-bold text-gray-900">Luna</span>
+   
         </div>
 
         <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
