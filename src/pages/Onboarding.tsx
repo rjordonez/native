@@ -20,13 +20,39 @@ const INTERESTS: Interest[] = [
 ].map(interest => ({ name: interest, selected: false })); // No 'custom' initially
 
 const LANGUAGE_LEVELS = ["Beginner", "Intermediate", "Advanced", "Native"];
+
+// Updated REASONS for slide 3
 const REASONS = [
-  "Make International Friends",
-  "Academic Practice",
-  "Career Development",
-  "Cultural Exchange",
-  "Travel Preparation",
-  "Personal Growth"
+  "Conversational practice",
+  "Speaking test prep",
+  "Rant about my day",
+  "Someone to talk to",
+  "Learn US culture",
+  "Interview practice",
+  "Asking good questions",
+  "Small talk practice",
+  "Simply have fun"
+];
+
+// New GOALS for the new slide 4
+const GOALS = [
+  "Speak English confidently",
+  "Nail my upcoming interview / test",
+  "Sound like a native speaker",
+  "Improve my understanding",
+  "Enhance public speaking"
+];
+
+// REFERRALS for slide 6
+const REFERRALS = [
+  "Jessie",
+  "Rex",
+  "Friend Recommendation",
+  "Techstars",
+  "Email",
+  "Poster",
+  "USC International Academy",
+  "USC International Clubs"
 ];
 
 function OnboardingPage() {
@@ -36,8 +62,10 @@ function OnboardingPage() {
   const [formData, setFormData] = useState({
     university: '',
     languageLevel: '',
-    reason: '',
+    reasons: [],
+    goals: [],
     interests: INTERESTS,
+    referrals: [],
     loading: false
   });
 
@@ -76,7 +104,7 @@ function OnboardingPage() {
 
   // Handle form submission to Firebase
   const handleNext = async () => {
-    if (step === 4) {
+    if (step === 6) {
       setFormData(prev => ({ ...prev, loading: true }));
       
       try {
@@ -88,8 +116,10 @@ function OnboardingPage() {
             // Merge the onboarding data with the existing user data
             university: formData.university,
             languageLevel: formData.languageLevel,
-            reason: formData.reason,
-            interests: formData.interests.filter(i => i.selected).map(i => i.name)
+            reasons: formData.reasons,
+            goals: formData.goals,
+            interests: formData.interests.filter(i => i.selected).map(i => i.name),
+            referrals: formData.referrals
           }, { merge: true }); // Use merge to avoid overwriting existing data like name and email
           console.log('Onboarding data submitted');
         }
@@ -104,14 +134,15 @@ function OnboardingPage() {
     }
     setStep(prev => prev + 1);  // Move to the next step if not on the last step
   };
-  
 
   const isStepValid = () => {
     switch (step) {
       case 1: return formData.university.length > 0;
       case 2: return formData.languageLevel.length > 0;
-      case 3: return formData.reason.length > 0;
-      case 4: return formData.interests.filter(i => i.selected).length === 3;
+      case 3: return formData.reasons.length > 0;
+      case 4: return formData.goals.length > 0;
+      case 5: return formData.interests.filter(i => i.selected).length === 3;
+      case 6: return formData.referrals.length > 0;
       default: return false;
     }
   };
@@ -122,7 +153,7 @@ function OnboardingPage() {
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex justify-between mb-2">
-            {[1, 2, 3, 4].map((num) => (
+            {[1, 2, 3, 4, 5, 6].map((num) => (
               <div
                 key={num}
                 className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -136,7 +167,7 @@ function OnboardingPage() {
           <div className="h-2 bg-gray-100 rounded-full">
             <div
               className="h-full bg-orange-500 rounded-full transition-all duration-300"
-              style={{ width: `${((step - 1) / 3) * 100}%` }}
+              style={{ width: `${((step - 1) / 5) * 100}%` }}
             />
           </div>
         </div>
@@ -183,7 +214,7 @@ function OnboardingPage() {
           </div>
         )}
 
-        {/* Step 3: Reason */}
+        {/* Step 3: Reasons (Multiple Choice) */}
         {step === 3 && (
           <div className="space-y-6">
             <div className="flex items-center gap-3">
@@ -191,25 +222,70 @@ function OnboardingPage() {
               <h2 className="text-2xl font-bold text-gray-800">Why are you using the app?</h2>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              {REASONS.map((reason) => (
-                <button
-                  key={reason}
-                  onClick={() => setFormData(prev => ({ ...prev, reason }))}
-                  className={`p-4 rounded-lg border-2 transition-all text-left ${
-                    formData.reason === reason
-                      ? 'border-orange-500 bg-orange-50 text-orange-700'
-                      : 'border-gray-100 hover:border-orange-200'
-                  }`}
-                >
-                  {reason}
-                </button>
-              ))}
+              {REASONS.map((reason) => {
+                const isSelected = formData.reasons.includes(reason);
+                return (
+                  <button
+                    key={reason}
+                    onClick={() => {
+                      setFormData(prev => {
+                        const reasons = prev.reasons.includes(reason)
+                          ? prev.reasons.filter(r => r !== reason)
+                          : [...prev.reasons, reason];
+                        return { ...prev, reasons };
+                      });
+                    }}
+                    className={`p-4 rounded-lg border-2 transition-all text-left ${
+                      isSelected
+                        ? 'border-orange-500 bg-orange-50 text-orange-700'
+                        : 'border-gray-100 hover:border-orange-200'
+                    }`}
+                  >
+                    {reason}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* Step 4: Interests */}
+        {/* Step 4: Goals (New Slide 4, Multiple Choice) */}
         {step === 4 && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              {/* Add an appropriate icon if needed */}
+              <h2 className="text-2xl font-bold text-gray-800">What do you hope to achieve?</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {GOALS.map((goal) => {
+                const isSelected = formData.goals.includes(goal);
+                return (
+                  <button
+                    key={goal}
+                    onClick={() => {
+                      setFormData(prev => {
+                        const goals = prev.goals.includes(goal)
+                          ? prev.goals.filter(g => g !== goal)
+                          : [...prev.goals, goal];
+                        return { ...prev, goals };
+                      });
+                    }}
+                    className={`p-4 rounded-lg border-2 transition-all text-left ${
+                      isSelected
+                        ? 'border-orange-500 bg-orange-50 text-orange-700'
+                        : 'border-gray-100 hover:border-orange-200'
+                    }`}
+                  >
+                    {goal}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: Interests (Original Slide 4) */}
+        {step === 5 && (
           <div className="space-y-6">
             <div>
               <h2 className="text-2xl font-bold text-gray-800 mb-2">Select 3 interests</h2>
@@ -271,6 +347,41 @@ function OnboardingPage() {
           </div>
         )}
 
+        {/* Step 6: Referrals (New Slide 6, Multiple Choice) */}
+        {step === 6 && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              {/* Add an appropriate icon if needed */}
+              <h2 className="text-2xl font-bold text-gray-800">How did you know about Native?</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {REFERRALS.map((referral) => {
+                const isSelected = formData.referrals.includes(referral);
+                return (
+                  <button
+                    key={referral}
+                    onClick={() => {
+                      setFormData(prev => {
+                        const referrals = prev.referrals.includes(referral)
+                          ? prev.referrals.filter(r => r !== referral)
+                          : [...prev.referrals, referral];
+                        return { ...prev, referrals };
+                      });
+                    }}
+                    className={`p-4 rounded-lg border-2 transition-all text-left ${
+                      isSelected
+                        ? 'border-orange-500 bg-orange-50 text-orange-700'
+                        : 'border-gray-100 hover:border-orange-200'
+                    }`}
+                  >
+                    {referral}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Navigation Buttons */}
         <div className="flex justify-between mt-8">
           {step > 1 && (
@@ -298,7 +409,7 @@ function OnboardingPage() {
               </>
             ) : (
               <>
-                {step === 4 ? 'Complete' : 'Next'}
+                {step === 6 ? 'Complete' : 'Next'}
               </>
             )}
           </button>
