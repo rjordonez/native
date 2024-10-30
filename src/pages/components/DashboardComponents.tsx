@@ -32,7 +32,7 @@ export interface ChatMessageType {
 }
 
 export interface Session {
-  id: number;
+  id: string; // Changed to string to match Firestore document IDs
   date: string;
   transcript: string;
   hasReport: boolean;
@@ -51,7 +51,7 @@ export interface Session {
 export interface SessionsListProps {
   sessions: Session[];
   onSelectSession: (session: Session) => void;
-  onRequestReport: (sessionId: number) => void;
+  onRequestReport: (sessionId: string) => void; // Changed to string
 }
 
 export interface SessionState {
@@ -65,6 +65,7 @@ export interface SessionState {
 export interface HeaderProps {
   xpRef: React.RefObject<HTMLDivElement>;
   xp: number;
+  onSignOut: () => void; // Added this line
 }
 
 export interface InstructionsModalProps {
@@ -187,7 +188,7 @@ export function SessionsList({ sessions, onSelectSession, onRequestReport }: Ses
 }
 
 // Header Component
-export function Header({ xpRef, xp }: HeaderProps) {
+export function Header({ xpRef, xp, onSignOut }: HeaderProps) { // Added onSignOut
   return (
     <header className="bg-white border-b border-gray-200 p-4 fixed top-0 w-full z-50 flex flex-col md:flex-row items-center justify-between shadow">
       <div className="flex items-center space-x-4">
@@ -204,6 +205,7 @@ export function Header({ xpRef, xp }: HeaderProps) {
           <span className="font-semibold">15 Credits</span>
         </div>
         <button
+          onClick={onSignOut} // Attach the onSignOut function
           className="flex items-center space-x-2 text-gray-600 hover:text-orange-600 px-4 py-2 rounded-lg transition"
           aria-label="Sign Out"
         >

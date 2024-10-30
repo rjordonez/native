@@ -9,9 +9,9 @@ import {
   SessionTimer,
   XpAnimations,
 } from './components/DashboardComponents';
-import { Mic, MicOff, Play, X, History, Star, FileText } from 'lucide-react';
+import { Mic, MicOff, Play, X, History } from 'lucide-react';
 import { useAiAgent } from './aiAgent';
-import { auth, storage, db } from '../firebase'; // Import auth, storage, and db
+import { auth, storage, db } from '../firebase';
 import {
   ref as storageRef,
   uploadBytes,
@@ -27,19 +27,20 @@ import {
   doc,
 } from 'firebase/firestore';
 
+import { useNavigate } from 'react-router-dom'; // Import useNavigate for navigation
 import nativeLogo from './native-logo.png'; // Adjust the path as needed
 
 // Define interfaces if not already defined elsewhere
 interface Session {
-  id: number;
+  id: string; // Changed to string to match Firestore document IDs
   date: string;
   transcript: string;
   hasReport: boolean;
   userAudioURL?: string;
   aiAudioURL?: string;
-  duration?: string; // Added duration
-  sessionName: string; // Added sessionName
-  reportRequested: boolean; // Added reportRequested flag
+  duration?: string;
+  sessionName: string;
+  reportRequested: boolean;
   analytics?: {
     wordsPerMinute: number;
     commonWords: string[];
@@ -82,26 +83,33 @@ function DashboardPage() {
   const [socketError, setSocketError] = useState<string | null>(null);
 
   // **State for Sessions**
-  const [sessions, setSessions] = useState<Session[]>([]); // Initialize with empty array
+  const [sessions, setSessions] = useState<Session[]>([]);
+
+  // **State for Authentication**
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null); // null indicates loading
+
+  const navigate = useNavigate(); // Initialize navigate function
 
   // Utilize the custom AI agent hook
   const {
     initializeWebSocket,
     closeWebSocket,
-    handleAudioStream,
     initializeMediaSource,
     startRecording,
     stopRecording,
     handleVoiceActivityStart,
     handleVoiceActivityEnd,
-    resetMediaSource, // Access resetMediaSource from the hook
-    getUserAudioBlob, // Get user's audio blob
-    getAiAudioBlob, // Get AI's audio blob
+    resetMediaSource,
+    getUserAudioBlob,
+    getAiAudioBlob,
     audioElementRef,
-    gainNodeRef, // Import gainNodeRef
+    gainNodeRef,
   } = useAiAgent({
     addMessage: (message: string, isAI: boolean) => {
-      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const timestamp = new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
 
       // Optional: Log all transcripts for debugging
       console.log(`${isAI ? 'AI' : 'User'} (${timestamp}): ${message}`);
@@ -119,6 +127,23 @@ function DashboardPage() {
     onSocketError: (error) => setSocketError(error),
   });
 
+  // **Check Authentication Status**
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        // User is signed in
+        setIsAuthenticated(true);
+        fetchSessions(user.uid);
+      } else {
+        // User is not signed in
+        setIsAuthenticated(false);
+        navigate('/login'); // Redirect to sign-in page
+      }
+    });
+
+    return () => unsubscribe();
+  }, [navigate]);
+
   // Timer effect
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -127,15 +152,21 @@ function DashboardPage() {
         setSessionState((prev) => ({
           ...prev,
           timeRemaining: prev.timeRemaining - 1,
-          isActive: prev.timeRemaining - 1 > 0,
         }));
       }, 1000);
-    } else if (sessionState.isActive && sessionState.timeRemaining === 0) {
-      // Session ended
-      handleEndSession();
     }
     return () => clearInterval(timer);
   }, [sessionState.isActive, sessionState.timeRemaining]);
+
+  useEffect(() => {
+    if (sessionState.isActive && sessionState.timeRemaining === 0) {
+      handleEndSession();
+      setSessionState((prev) => ({
+        ...prev,
+        isActive: false,
+      }));
+    }
+  }, [sessionState.timeRemaining, sessionState.isActive]);
 
   useEffect(() => {
     setIsLoaded(true);
@@ -157,15 +188,22 @@ function DashboardPage() {
     };
   }, []);
 
+  // **Ref for Session State**
+  const sessionStateRef = useRef(sessionState);
+
+  useEffect(() => {
+    sessionStateRef.current = sessionState;
+  }, [sessionState]);
+
   // Clean up on unmount
   useEffect(() => {
     return () => {
-      if (sessionState.isActive && sessionState.startTime) {
+      if (sessionStateRef.current.isActive && sessionStateRef.current.startTime) {
         handleEndSession(); // Clean up on unmount
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionState.isActive, sessionState.startTime]);
+  }, []);
 
   const handleXpIncrement = () => {
     // Add a new key press event
@@ -206,13 +244,13 @@ function DashboardPage() {
   };
 
   const handleEndSession = async () => {
-    if (!sessionState.isActive || !sessionState.startTime) {
+    if (!sessionStateRef.current.isActive || !sessionStateRef.current.startTime) {
       console.log('No active session to end.');
       return;
     }
 
     const endTime = new Date();
-    const { startTime, timeRemaining } = sessionState;
+    const { startTime, timeRemaining } = sessionStateRef.current;
     let duration = 300 - timeRemaining; // duration in seconds
 
     // Compute duration based on startTime and endTime
@@ -221,13 +259,21 @@ function DashboardPage() {
 
     const durationMinutes = Math.floor(duration / 60);
     const durationSeconds = duration % 60;
-    const durationStr = `${String(durationMinutes).padStart(2, '0')}:${String(durationSeconds).padStart(2, '0')}`;
+    const durationStr = `${String(durationMinutes).padStart(2, '0')}:${String(
+      durationSeconds
+    ).padStart(2, '0')}`;
 
-    const endTimeStr = endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const endTimeStr = endTime.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
     // Add system message to messages
     const endedMessage = `Ended session at ${endTimeStr} for ${durationStr}`;
-    const timestamp = endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const timestamp = endTime.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
     setMessages((prev) => [
       ...prev,
       {
@@ -273,7 +319,9 @@ function DashboardPage() {
       const aiAudioBlob = getAiAudioBlob();
 
       // Combine user and AI audio into one Blob
-      const combinedAudioBlob = new Blob([userAudioBlob, aiAudioBlob], { type: 'audio/webm' });
+      const combinedAudioBlob = new Blob([userAudioBlob, aiAudioBlob], {
+        type: 'audio/webm',
+      });
 
       // Generate unique filenames
       const timestamp = Date.now();
@@ -308,7 +356,7 @@ function DashboardPage() {
         // Update sessions state
         setSessions((prevSessions) => [
           {
-            id: sessionNumber,
+            id: docRef.id, // Use Firestore document ID
             date: date,
             transcript: transcript,
             hasReport: false,
@@ -329,16 +377,14 @@ function DashboardPage() {
 
   // **Fetch sessions data from Firestore when auth state changes**
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    if (isAuthenticated) {
+      const user = auth.currentUser;
       if (user) {
         fetchSessions(user.uid);
-      } else {
-        console.error('User not authenticated');
       }
-    });
-
-    return () => unsubscribe();
-  }, []);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   const fetchSessions = async (userId: string) => {
     const userSessionsRef = collection(db, 'users', userId, 'sessions');
@@ -346,13 +392,13 @@ function DashboardPage() {
 
     try {
       const querySnapshot = await getDocs(q);
-      const sessionsData: Session[] = querySnapshot.docs.map((doc, index) => ({
-        id: index + 1, // Assign session numbers
+      const sessionsData: Session[] = querySnapshot.docs.map((doc) => ({
+        id: doc.id, // Use Firestore's unique document ID
         date: doc.data().date,
         transcript: doc.data().transcript,
         hasReport: false,
         duration: doc.data().duration,
-        sessionName: doc.data().sessionName || `Session ${index + 1}`,
+        sessionName: doc.data().sessionName || `Session`,
         reportRequested: doc.data().reportRequested || false,
         userAudioURL: doc.data().combinedAudioURL,
       }));
@@ -367,7 +413,6 @@ function DashboardPage() {
   const handleSelectSession = (session: Session) => {
     setSelectedSession(session);
     setShowingSessions(false);
-    // Implement any additional logic, such as displaying session details
   };
 
   // Handle closing the sessions list
@@ -390,7 +435,7 @@ function DashboardPage() {
   };
 
   // Handle requesting a report
-  const handleRequestReport = async (sessionId: number) => {
+  const handleRequestReport = async (sessionId: string) => { // Changed to string
     const userId = auth.currentUser ? auth.currentUser.uid : null;
     if (!userId) {
       console.error('User not authenticated');
@@ -403,7 +448,13 @@ function DashboardPage() {
       if (!session) return;
 
       // Update Firestore
-      const sessionDocRef = doc(db, 'users', userId, 'sessions', session.sessionName);
+      const sessionDocRef = doc(
+        db,
+        'users',
+        userId,
+        'sessions',
+        session.id // Use the document ID
+      );
       await updateDoc(sessionDocRef, {
         reportRequested: true,
       });
@@ -419,9 +470,35 @@ function DashboardPage() {
     }
   };
 
+  // **Define handleSignOut function**
+  const handleSignOut = async () => {
+    try {
+      await auth.signOut();
+      navigate('/login'); // Redirect to sign-in page after signing out
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  // **Conditional Rendering Based on Authentication Status**
+  if (isAuthenticated === null) {
+    // Authentication status is loading
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    // User is not authenticated; optional since we already redirect
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 relative">
-      <Header xpRef={xpRef} xp={xp} />
+      {/* Pass handleSignOut to Header component */}
+      <Header xpRef={xpRef} xp={xp} onSignOut={handleSignOut} />
 
       {/* XP Animations */}
       {keyPresses.map((keyPressId) => (
@@ -472,7 +549,7 @@ function DashboardPage() {
       {/* Audio Element for AI Responses */}
       <audio ref={audioElementRef} />
 
-      {/* **Conditional Rendering for Sessions List** */}
+      {/* Conditional Rendering for Sessions List */}
       {showingSessions && (
         <div className="fixed inset-0 bg-white z-50 p-4 overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
@@ -493,7 +570,7 @@ function DashboardPage() {
         </div>
       )}
 
-      {/* **Session Details Modal** */}
+      {/* Session Details Modal */}
       {selectedSession && (
         <div className="fixed inset-0 bg-white z-50 p-4 overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
@@ -537,7 +614,7 @@ function DashboardPage() {
         </div>
       )}
 
-      {/* **Bottom Bar** */}
+      {/* Bottom Bar */}
       {!showingSessions && !selectedSession && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
           <div className="max-w-7xl mx-auto flex items-center justify-center relative">

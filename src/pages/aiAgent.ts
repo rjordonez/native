@@ -135,7 +135,10 @@ export function useAiAgent({ addMessage, onSocketError }: UseAiAgentProps) {
   };
 
   const handleUhCase = () => {
-    addMessage("I notice you're using 'uh' quite a bit. Would you like some tips to reduce filler words?", true);
+    addMessage(
+      "I notice you're using 'uh' quite a bit. Would you like some tips to reduce filler words?",
+      true
+    );
   };
 
   const initializeMediaSource = () => {
@@ -312,13 +315,22 @@ export function useAiAgent({ addMessage, onSocketError }: UseAiAgentProps) {
   const handleVoiceActivityEnd = (isMuted: boolean) => {
     if (audioElementRef.current && !isMuted) {
       if (audioElementRef.current.paused) {
-        audioElementRef.current.play().catch((error) => console.error('Error resuming audio:', error));
+        audioElementRef.current
+          .play()
+          .catch((error) => console.error('Error resuming audio:', error));
       }
     }
   };
 
   // Reset MediaSource and related refs
   const resetMediaSource = () => {
+    // Stop and detach the audio element safely
+    if (audioElementRef.current) {
+      audioElementRef.current.pause();
+      audioElementRef.current.removeAttribute('src');
+      audioElementRef.current.load(); // Reset the audio element
+    }
+
     // Reset MediaSource and SourceBuffer
     if (mediaSourceRef.current) {
       try {
@@ -331,11 +343,6 @@ export function useAiAgent({ addMessage, onSocketError }: UseAiAgentProps) {
       mediaSourceRef.current = null;
     }
 
-    if (audioElementRef.current) {
-      audioElementRef.current.pause();
-      audioElementRef.current.src = '';
-    }
-
     if (sourceBufferRef.current) {
       sourceBufferRef.current = null;
     }
@@ -345,7 +352,9 @@ export function useAiAgent({ addMessage, onSocketError }: UseAiAgentProps) {
 
   // Function to get the user's audio Blob
   function getUserAudioBlob(): Blob {
-    return new Blob(userAudioChunksRef.current, { type: 'audio/webm; codecs=opus' });
+    return new Blob(userAudioChunksRef.current, {
+      type: 'audio/webm; codecs=opus',
+    });
   }
 
   // Function to get the AI's audio Blob
@@ -368,16 +377,15 @@ export function useAiAgent({ addMessage, onSocketError }: UseAiAgentProps) {
   return {
     initializeWebSocket,
     closeWebSocket,
-    handleAudioStream,
     initializeMediaSource,
     startRecording,
     stopRecording,
     handleVoiceActivityStart,
     handleVoiceActivityEnd,
-    resetMediaSource, // Exposed reset function
-    getUserAudioBlob, // Expose the function to get the user's audio Blob
-    getAiAudioBlob, // Expose the function to get the AI's audio Blob
+    resetMediaSource,
+    getUserAudioBlob,
+    getAiAudioBlob,
     audioElementRef,
-    gainNodeRef, // Expose gainNodeRef for mute functionality
+    gainNodeRef,
   };
 }
