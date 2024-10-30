@@ -8,10 +8,11 @@ import {
   InstructionsModal,
   SessionTimer,
   XpAnimations,
-} from './components/DashboardComponents';
-import { Mic, MicOff, Play, X, History } from 'lucide-react';
-import { useAiAgent } from './aiAgent';
-import { auth, storage, db } from '../firebase';
+  QuestionCarousel, // Import the new component
+} from './components/DashboardComponents'; // Adjust the import path as needed
+import { Mic, MicOff, Play, X, History, ExternalLink } from 'lucide-react'; // Import ExternalLink icon
+import { useAiAgent } from './aiAgent'; // Adjust the import path as needed
+import { auth, storage, db } from '../firebase'; // Adjust the import path as needed
 import {
   ref as storageRef,
   uploadBytes,
@@ -28,7 +29,6 @@ import {
 } from 'firebase/firestore';
 
 import { useNavigate } from 'react-router-dom'; // Import useNavigate for navigation
-import nativeLogo from './native-logo.png'; // Adjust the path as needed
 
 // Define interfaces if not already defined elsewhere
 interface Session {
@@ -76,7 +76,7 @@ function DashboardPage() {
     isMuted: false,
     startTime: null,
   });
-  const [xp, setXp] = useState(2450);
+  const [xp, setXp] = useState(0);
   const xpRef = useRef<HTMLDivElement>(null);
   const [keyPresses, setKeyPresses] = useState<number[]>([]);
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
@@ -480,6 +480,15 @@ function DashboardPage() {
     }
   };
 
+  // **Add this new array for the questions**
+  const carouselQuestions = [
+    "Explain a topic in American culture.",
+    "Practice your elevator pitch or self-introduction.",
+    "Practice small talk or a conversation with a stranger.",
+    "Prepare for a speaking test, presentation, or interview.",
+    "Or just talk about your hobbies or interests.",
+  ];
+
   // **Conditional Rendering Based on Authentication Status**
   if (isAuthenticated === null) {
     // Authentication status is loading
@@ -517,7 +526,7 @@ function DashboardPage() {
       {/* Main Content */}
       <main className="pt-24 pb-24 px-4">
         <WordOfDay />
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[calc(100vh-400px)] mb-20 overflow-y-auto scrollbar-hide relative">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[calc(100vh-400px)] mb-4 overflow-y-auto scrollbar-hide relative">
           {/* Session Timer positioned in top-right corner and sticky */}
           {sessionState.isActive && (
             <div className="sticky top-4 flex justify-end">
@@ -534,6 +543,11 @@ function DashboardPage() {
             />
           ))}
         </div>
+
+        {/* Add the QuestionCarousel here */}
+        {!sessionState.isActive && (
+          <QuestionCarousel questions={carouselQuestions} />
+        )}
       </main>
 
       {/* Instructions Modal */}
@@ -617,9 +631,9 @@ function DashboardPage() {
       {/* Bottom Bar */}
       {!showingSessions && !selectedSession && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-center relative">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
             {/* Left Section: Previous Sessions Button */}
-            <div className="absolute left-4">
+            <div className="flex-1 flex justify-start">
               <button
                 onClick={() => setShowingSessions(true)}
                 className="flex items-center space-x-2 text-gray-600 hover:text-orange-600 px-4 py-2 rounded-lg transition"
@@ -631,7 +645,7 @@ function DashboardPage() {
             </div>
 
             {/* Center Section: Start Session or Mute/Unmute Button */}
-            <div>
+            <div className="flex-shrink-0">
               {!sessionState.isActive ? (
                 <button
                   onClick={handleStartSession}
@@ -657,9 +671,22 @@ function DashboardPage() {
               )}
             </div>
 
-            {/* Right Section: End Session Button */}
-            {sessionState.isActive && (
-              <div className="absolute right-4">
+            {/* Right Section: Feedback and End Session Buttons */}
+            <div className="flex-1 flex justify-end space-x-2">
+              {/* Feedback Button */}
+              <a
+                href="https://forms.gle/UmeH7nSKtZucMJkV6"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center space-x-2 text-gray-600 hover:text-orange-600 px-4 py-2 rounded-lg transition"
+                aria-label="Feedback"
+              >
+                <ExternalLink size={24} />
+                <span>Feedback</span>
+              </a>
+
+              {/* End Session Button (visible only when session is active) */}
+              {sessionState.isActive && (
                 <button
                   onClick={handleEndSession}
                   className="flex items-center space-x-2 text-red-600 hover:text-red-700 px-4 py-2 rounded-lg transition"
@@ -668,8 +695,8 @@ function DashboardPage() {
                   <X size={24} />
                   <span>End Session</span>
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}

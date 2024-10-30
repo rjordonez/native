@@ -1,3 +1,6 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* In your main CSS file (e.g., src/index.css or src/App.css) */
+

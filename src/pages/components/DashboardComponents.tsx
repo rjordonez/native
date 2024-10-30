@@ -11,6 +11,7 @@ import {
   Timer,
   X,
   Info,
+  ExternalLink,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import nativeLogo from '../native-logo.png'; // Adjust the path based on your project structure
@@ -89,6 +90,10 @@ export interface XpAnimationBoltProps {
   startPosition: { x: number; y: number };
   delay: number;
   onAnimationComplete: () => void;
+}
+
+export interface QuestionCarouselProps {
+  questions: string[];
 }
 
 // ChatMessage Component
@@ -188,7 +193,7 @@ export function SessionsList({ sessions, onSelectSession, onRequestReport }: Ses
 }
 
 // Header Component
-export function Header({ xpRef, xp, onSignOut }: HeaderProps) { // Added onSignOut
+export function Header({ xpRef, xp, onSignOut }: HeaderProps) {
   return (
     <header className="bg-white border-b border-gray-200 p-4 fixed top-0 w-full z-50 flex flex-col md:flex-row items-center justify-between shadow">
       <div className="flex items-center space-x-4">
@@ -223,14 +228,15 @@ export function InstructionsModal({ onConfirm, onClose }: InstructionsModalProps
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-semibold text-gray-900">How to Interact with VoiceAI</h3>
+          <h3 className="text-xl font-semibold text-gray-900">How to Interact with Native</h3>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700" aria-label="Close Instructions">
             <X size={24} />
           </button>
         </div>
         <div className="space-y-4 mb-6">
           <p className="text-gray-600">
-            1. Once you start the session, you'll have 5 minutes to interact with the AI voice agent.
+            1. Once you start the session, you'll have 5 minutes to interact with Luna - your AI-native 
+            friend.
           </p>
           <p className="text-gray-600">
             2. Click the microphone button to mute/unmute your voice.
@@ -240,6 +246,9 @@ export function InstructionsModal({ onConfirm, onClose }: InstructionsModalProps
           </p>
           <p className="text-gray-600">
             4. You can end the session at any time using the "End Session" button.
+          </p>
+          <p className="text-gray-600">
+            5. You can hear back conversation by clicking “Previous Sessions”.
           </p>
         </div>
         <div className="flex justify-end space-x-3">
@@ -373,5 +382,34 @@ export function XpAnimationBolt({
     >
       <LightningBoltIcon size={30} className="text-purple-500" />
     </motion.div>
+  );
+}
+
+// QuestionCarousel Component
+export function QuestionCarousel({ questions }: QuestionCarouselProps) {
+  // Duplicate the questions array to create a seamless loop
+  const duplicatedQuestions = [...questions, ...questions];
+
+  return (
+    <div className="relative overflow-hidden h-24 mt-4">
+      <motion.div
+        className="flex"
+        animate={{ x: ['0%', '-50%'] }}
+        transition={{
+          repeat: Infinity,
+          repeatType: 'loop',
+          duration: 20, // Adjust speed here
+          ease: 'linear',
+        }}
+      >
+        {duplicatedQuestions.map((question, index) => (
+          <div key={index} className="flex-shrink-0">
+            <div className="bg-orange-100 text-orange-800 px-6 py-3 rounded-xl shadow-md mx-2">
+              {question}
+            </div>
+          </div>
+        ))}
+      </motion.div>
+    </div>
   );
 }
