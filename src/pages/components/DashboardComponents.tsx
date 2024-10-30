@@ -129,7 +129,7 @@ export function WordOfDay() {
       <div>
         <span className="text-sm text-gray-500">Word of the Day</span>
         <h3 className="font-semibold text-gray-900">Cherish ˈtʃer.ɪʃ</h3>
-        <p className="text-sm text-gray-600">to love, protect, and care for someone or something</p>
+        <p className="text-sm text-gray-600">to love, protect, and care for someone or something that is important to you</p>
       </div>
       <div className="bg-white px-3 py-1 rounded-full text-sm text-orange-600 font-medium">
         +50 XP for using this word
