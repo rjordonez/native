@@ -23,15 +23,14 @@ const LANGUAGE_LEVELS = ["Beginner", "Intermediate", "Advanced", "Native"];
 
 // Updated REASONS for slide 3
 const REASONS = [
-  "Conversational practice",
-  "Speaking test prep",
+  "Practice conversational speaking",
+  "Prepare for speaking test",
   "Rant about my day",
-  "Someone to talk to",
-  "Learn US culture",
-  "Interview practice",
-  "Asking good questions",
-  "Small talk practice",
-  "Simply have fun"
+  "Someone to brainstorm with",
+  "Learn about US culture",
+  "Sharing random thoughts",
+  "Interview Practice",
+  "Simply have fun",
 ];
 
 // New GOALS for the new slide 4
@@ -39,8 +38,9 @@ const GOALS = [
   "Speak English confidently",
   "Nail my upcoming interview / test",
   "Sound like a native speaker",
-  "Improve my understanding",
-  "Enhance public speaking"
+  "Improve my English understanding",
+  "Enhance public speaking",
+  "Improve networking skills"
 ];
 
 // REFERRALS for slide 6
@@ -219,7 +219,7 @@ function OnboardingPage() {
           <div className="space-y-6">
             <div className="flex items-center gap-3">
               <Heart className="w-8 h-8 text-orange-500" />
-              <h2 className="text-2xl font-bold text-gray-800">Why are you using the app?</h2>
+              <h2 className="text-2xl font-bold text-gray-800">Why are you using Native?</h2>
             </div>
             <div className="grid grid-cols-2 gap-4">
               {REASONS.map((reason) => {
@@ -254,7 +254,7 @@ function OnboardingPage() {
           <div className="space-y-6">
             <div className="flex items-center gap-3">
               {/* Add an appropriate icon if needed */}
-              <h2 className="text-2xl font-bold text-gray-800">What do you hope to achieve?</h2>
+              <h2 className="text-2xl font-bold text-gray-800">What do you hope to achieve with Native?</h2>
             </div>
             <div className="grid grid-cols-2 gap-4">
               {GOALS.map((goal) => {
@@ -352,7 +352,7 @@ function OnboardingPage() {
           <div className="space-y-6">
             <div className="flex items-center gap-3">
               {/* Add an appropriate icon if needed */}
-              <h2 className="text-2xl font-bold text-gray-800">How did you know about Native?</h2>
+              <h2 className="text-2xl font-bold text-gray-800">How do you know about Native?</h2>
             </div>
             <div className="grid grid-cols-2 gap-4">
               {REFERRALS.map((referral) => {
