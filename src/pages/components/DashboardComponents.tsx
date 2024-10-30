@@ -128,8 +128,8 @@ export function WordOfDay() {
     <div className="bg-gradient-to-r from-purple-50 to-orange-50 rounded-lg p-3 flex justify-between items-center mb-6">
       <div>
         <span className="text-sm text-gray-500">Word of the Day</span>
-        <h3 className="font-semibold text-gray-900">Ephemeral</h3>
-        <p className="text-sm text-gray-600">lasting for a very short time</p>
+        <h3 className="font-semibold text-gray-900">Cherish ˈtʃer.ɪʃ</h3>
+        <p className="text-sm text-gray-600">to love, protect, and care for someone or something</p>
       </div>
       <div className="bg-white px-3 py-1 rounded-full text-sm text-orange-600 font-medium">
         +50 XP for using this word
