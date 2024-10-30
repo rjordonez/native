@@ -91,8 +91,9 @@ function OnboardingPage() {
     referrals: [],
     loading: false,
   });
+  const [checkingAuth, setCheckingAuth] = useState(true); // New state for loading
 
-  // **New useEffect to handle authentication and onboarding check**
+  // **useEffect to handle authentication and onboarding check**
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -106,18 +107,21 @@ function OnboardingPage() {
 
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            // Assuming you have a field 'onboardingCompleted' in your user document
+            // Check if 'onboardingCompleted' flag is true
             if (userData.onboardingCompleted) {
               // Onboarding is completed, redirect to /dashboard
               navigate('/dashboard', { replace: true });
             }
             // If onboarding is not completed, stay on the onboarding page
           } else {
-            // If user document does not exist, stay on the onboarding page
+            // If user document does not exist, assume onboarding not completed
+            // Optionally, you can initialize user document here
           }
         } catch (error) {
           console.error('Error checking onboarding status:', error);
-          // In case of error, you might want to redirect or show an error message
+          // Optionally, handle the error (e.g., show a notification)
+        } finally {
+          setCheckingAuth(false); // Stop loading
         }
       }
     });
@@ -190,6 +194,7 @@ function OnboardingPage() {
         }
       } catch (error) {
         console.error('Error saving onboarding data:', error);
+        // Optionally, handle the error (e.g., show a notification)
       } finally {
         setFormData((prev) => ({ ...prev, loading: false }));
         navigate('/dashboard'); // Redirect to the dashboard
@@ -203,9 +208,9 @@ function OnboardingPage() {
   const isStepValid = () => {
     switch (step) {
       case 1:
-        return formData.university.length > 0;
+        return formData.university.trim().length > 0;
       case 2:
-        return formData.languageLevel.length > 0;
+        return formData.languageLevel.trim().length > 0;
       case 3:
         return formData.reasons.length > 0;
       case 4:
@@ -219,6 +224,16 @@ function OnboardingPage() {
     }
   };
 
+  // If still checking authentication or onboarding status, show loading indicator
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
+      </div>
+    );
+  }
+
+  // Render the onboarding form only if the user is authenticated and has not completed onboarding
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg w-full max-w-2xl p-8 border border-gray-100">
