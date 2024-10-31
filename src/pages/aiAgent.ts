@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 
 // AI Voice Agent Integration Constants
 const AGENT_ID = 'Cloned-Luna-ej0YF57vZ_RNOSrXIwrPY'; // Replace with your Agent ID
-const API_KEY = 'ak-a8c546a168d84b63b4cd345a8c200026'; // Replace with your API Key
+const API_KEY = 'ak-be7de9014d97471691bc1fe60fd15a3d'; // Replace with your API Key
 
 interface UseAiAgentProps {
   addMessage: (message: string, isAI: boolean) => void;
